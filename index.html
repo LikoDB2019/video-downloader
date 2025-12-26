@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Downloader</title>
+    <style>
+        /* RESET I BAZA */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-color: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0c29;  /* fallback */
+            background: linear-gradient(to right, #24243e, #302b63, #0f0c29);
+            color: var(--text-color);
+            
+            /* KLUCZOWE DLA CENTROWANIA: */
+            display: flex;
+            justify-content: center; /* Poziomo */
+            align-items: center;     /* Pionowo */
+            min-height: 100vh;       /* Minimalna wysokość to całe okno */
+            width: 100%;
+            overflow: hidden;        /* Ukrywa paski przewijania tła */
+        }
+
+        /* TŁO ANIMOWANE */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: -1;
+            animation: float 10s infinite ease-in-out;
+        }
+        .orb-1 { width: 300px; height: 300px; background: #764ba2; top: -50px; left: -50px; }
+        .orb-2 { width: 400px; height: 400px; background: #667eea; bottom: -100px; right: -100px; animation-delay: -5s; }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(30px, 50px); }
+        }
+
+        /* GŁÓWNA KARTA */
+        .card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            padding: 40px;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 480px;
+            text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            
+            /* Zabezpieczenie centrowania */
+            margin: auto; 
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+            background: -webkit-linear-gradient(#fff, #a6c1ee);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 30px;
+        }
+
+        /* INPUT I PRZYCISK */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        input {
+            width: 100%;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.2);
+            color: white;
+            font-size: 1rem;
+            transition: 0.3s;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #764ba2;
+            background: rgba(0,0,0,0.4);
+            box-shadow: 0 0 15px rgba(118, 75, 162, 0.4);
+        }
+
+        button {
+            width: 100%;
+            padding: 16px;
+            border-radius: 12px;
+            border: none;
+            background: var(--primary-gradient);
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        /* STATUS I IKONY */
+        .loader {
+            display: none;
+            margin-top: 20px;
+            color: rgba(255,255,255,0.8);
+            font-size: 0.9rem;
+        }
+
+        .platforms {
+            margin-top: 30px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            background: rgba(255,255,255,0.05);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.5);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <div class="card">
+        <h1>Pobieracz Wideo</h1>
+        <p class="subtitle">Wklej link, a my zajmiemy się resztą.</p>
+
+        <form action="/download" method="post" onsubmit="startDownload()">
+            <div class="input-group">
+                <input type="text" name="url" placeholder="Wklej link (YouTube, CDA, TikTok...)" required autocomplete="off">
+                <button type="submit" id="btn-submit">Pobierz plik</button>
+            </div>
+        </form>
+
+        <div class="loader" id="loader">
+            ⏳ Przetwarzanie wideo... Proszę czekać.
+        </div>
+
+        <div class="platforms">
+            <span class="tag">YouTube</span>
+            <span class="tag">CDA</span>
+            <span class="tag">Facebook</span>
+            <span class="tag">Instagram</span>
+            <span class="tag">TikTok</span>
+        </div>
+    </div>
+
+    <script>
+        function startDownload() {
+            const btn = document.getElementById('btn-submit');
+            const loader = document.getElementById('loader');
+            
+            // Ukryj przycisk, pokaż loader
+            btn.style.opacity = '0.5';
+            btn.innerHTML = 'Pobieranie...';
+            btn.style.pointerEvents = 'none';
+            loader.style.display = 'block';
+
+            // Reset po 5 sekundach (w razie gdyby użytkownik chciał pobrać coś innego)
+            setTimeout(() => {
+                btn.style.opacity = '1';
+                btn.innerHTML = 'Pobierz plik';
+                btn.style.pointerEvents = 'auto';
+                loader.innerHTML = '✅ Plik powinien zacząć się pobierać.';
+            }, 8000); 
+        }
+    </script>
+
+</body>
+</html>
